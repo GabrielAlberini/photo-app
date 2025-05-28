@@ -17,88 +17,78 @@ interface AuthState {
   checkAuth: () => Promise<boolean>;
 }
 
-// This is a mock implementation for the frontend demo
-// In a real app, these functions would communicate with a backend API
+const API_BASE = 'http://localhost:3000/api/auth';
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  
+
   login: async (email, password) => {
-    // Simulate API call
     set({ isLoading: true });
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login
-      if (email && password) {
-        const user = {
-          id: '1',
-          name: 'Demo User',
-          email,
-          avatar: 'https://i.pravatar.cc/150?u=demouser',
-        };
-        
-        localStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true, isLoading: false });
-      } else {
-        throw new Error('Invalid credentials');
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error al iniciar sesión');
       }
-    } catch (error) {
+      const { token, user } = await res.json();
+      localStorage.setItem('token', token);
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error: any) {
       set({ isLoading: false });
       throw error;
     }
   },
-  
+
   register: async (name, email, password) => {
-    // Simulate API call
     set({ isLoading: true });
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful registration
-      if (name && email && password) {
-        const user = {
-          id: '1',
-          name,
-          email,
-          avatar: 'https://i.pravatar.cc/150?u=newuser',
-        };
-        
-        localStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true, isLoading: false });
-      } else {
-        throw new Error('Invalid registration data');
+      const res = await fetch(`${API_BASE}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Error en el registro');
       }
-    } catch (error) {
+      const { token, user } = await res.json();
+      localStorage.setItem('token', token);
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error: any) {
       set({ isLoading: false });
       throw error;
     }
   },
-  
+
   logout: () => {
-    localStorage.removeItem('user');
+    localStorage.removeItem('token');
     set({ user: null, isAuthenticated: false });
   },
-  
+
   checkAuth: async () => {
     set({ isLoading: true });
-    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      return false;
+    }
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const storedUser = localStorage.getItem('user');
-      
-      if (storedUser) {
-        const user = JSON.parse(storedUser) as User;
-        set({ user, isAuthenticated: true, isLoading: false });
-        return true;
-      } else {
-        set({ user: null, isAuthenticated: false, isLoading: false });
-        return false;
+      const res = await fetch(`${API_BASE}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        throw new Error('Token inválido');
       }
-    } catch (error) {
+      const user = await res.json();
+      set({ user, isAuthenticated: true, isLoading: false });
+      return true;
+    } catch {
       set({ user: null, isAuthenticated: false, isLoading: false });
       return false;
     }

@@ -1,19 +1,27 @@
+// src/index.ts
 import express from 'express';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { connectDB } from './config/db';
 import authRoutes from './routes/auth';
+import cors from "cors"
 
 dotenv.config();
-
 const app = express();
 app.use(express.json());
+app.use(cors())
 
 app.use('/api/auth', authRoutes);
 
 const PORT = process.env.PORT || 3000;
-mongoose.connect(process.env.MONGO_URI!)
-  .then(() => {
-    console.log('✅ Conectado a MongoDB');
-    app.listen(PORT, () => console.log(`🚀 Server en puerto ${PORT}`));
-  })
-  .catch(err => console.error('❌ Error al conectar a MongoDB', err));
+
+(async () => {
+  try {
+    await connectDB();
+    app.listen(PORT, () => {
+      console.log(`🚀 Server en puerto ${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ No se pudo arrancar el servidor por fallo en la DB:', error);
+    process.exit(1);
+  }
+})();
