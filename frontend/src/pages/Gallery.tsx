@@ -8,7 +8,14 @@ import PhotoGrid from '../components/photos/PhotoGrid';
 type FilterType = 'all' | 'month' | 'tag' | 'event';
 
 const Gallery: React.FC = () => {
-  const { photos, deletePhoto } = usePhotoStore();
+  // Zustand selectors
+  const photos = usePhotoStore(state => state.photos);
+  const deletePhoto = usePhotoStore(state => state.deletePhoto);
+  const getPhotosByMonth = usePhotoStore(state => state.getPhotosByMonth);
+  const getPhotosByTag = usePhotoStore(state => state.getPhotosByTag);
+  const getPhotosByEvent = usePhotoStore(state => state.getPhotosByEvent);
+
+  // Local UI state
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
   const [selectedTag, setSelectedTag] = useState<string>('');
@@ -16,44 +23,40 @@ const Gallery: React.FC = () => {
   const [filteredPhotos, setFilteredPhotos] = useState(photos);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Get unique tags and events for filters
+  // Compute unique tags & events
   const allTags = Array.from(new Set(photos.flatMap(photo => photo.tags)));
-  const allEvents = Array.from(new Set(photos.filter(photo => photo.event).map(photo => photo.event as string)));
+  const allEvents = Array.from(
+    new Set(photos.filter(photo => photo.event).map(photo => photo.event as string))
+  );
 
-  // Update filtered photos when filters or photos change
+  // Update filteredPhotos when dependencies change
   useEffect(() => {
-    let result = [...photos];
+    let result;
 
     switch (filterType) {
-      case 'month':
+      case 'month': {
         const [year, month] = selectedMonth.split('-').map(Number);
-        result = photos.filter(photo => {
-          const dateTaken = new Date(photo.dateTaken);
-          return (
-            dateTaken.getFullYear() === year &&
-            dateTaken.getMonth() === month - 1
-          );
-        });
+        result = getPhotosByMonth(year, month);
         break;
-      case 'tag':
-        if (selectedTag) {
-          result = photos.filter(photo => photo.tags.includes(selectedTag));
-        }
+      }
+
+      case 'tag': {
+        result = selectedTag ? getPhotosByTag(selectedTag) : photos;
         break;
-      case 'event':
-        if (selectedEvent) {
-          result = photos.filter(photo => photo.event === selectedEvent);
-        }
+      }
+
+      case 'event': {
+        result = selectedEvent ? getPhotosByEvent(selectedEvent) : photos;
         break;
+      }
+
       default:
-        // All photos, already set
-        break;
+        result = photos;
     }
 
     setFilteredPhotos(result);
   }, [photos, filterType, selectedMonth, selectedTag, selectedEvent]);
 
-  // Handle filter changes
   const handleFilterChange = (type: FilterType) => {
     setFilterType(type);
     setShowFilters(false);
@@ -61,6 +64,7 @@ const Gallery: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Photo Gallery</h1>
@@ -68,7 +72,7 @@ const Gallery: React.FC = () => {
             Browse and manage your photo collection
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           <Link to="/upload" className="btn btn-primary">
             <Upload className="mr-1.5 h-4 w-4" />
@@ -77,7 +81,7 @@ const Gallery: React.FC = () => {
 
           <button
             className="btn btn-secondary"
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => setShowFilters(prev => !prev)}
           >
             <Filter className="mr-1.5 h-4 w-4" />
             Filters
@@ -85,10 +89,11 @@ const Gallery: React.FC = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters Panel */}
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Month Filter */}
             <div>
               <div className="flex items-center mb-2">
                 <Calendar className="h-5 w-5 text-primary-500 mr-1.5" />
@@ -97,9 +102,7 @@ const Gallery: React.FC = () => {
                 </h3>
               </div>
               <button
-                className={`btn ${
-                  filterType === 'month' ? 'btn-primary' : 'btn-secondary'
-                } w-full mb-2`}
+                className={`btn ${filterType === 'month' ? 'btn-primary' : 'btn-secondary'} w-full mb-2`}
                 onClick={() => handleFilterChange('month')}
               >
                 By Month
@@ -108,12 +111,13 @@ const Gallery: React.FC = () => {
                 <input
                   type="month"
                   value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  onChange={e => setSelectedMonth(e.target.value)}
                   className="input"
                 />
               )}
             </div>
 
+            {/* Tag Filter */}
             <div>
               <div className="flex items-center mb-2">
                 <Tag className="h-5 w-5 text-primary-500 mr-1.5" />
@@ -122,9 +126,7 @@ const Gallery: React.FC = () => {
                 </h3>
               </div>
               <button
-                className={`btn ${
-                  filterType === 'tag' ? 'btn-primary' : 'btn-secondary'
-                } w-full mb-2`}
+                className={`btn ${filterType === 'tag' ? 'btn-primary' : 'btn-secondary'} w-full mb-2`}
                 onClick={() => handleFilterChange('tag')}
               >
                 By Tag
@@ -132,19 +134,18 @@ const Gallery: React.FC = () => {
               {filterType === 'tag' && (
                 <select
                   value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
+                  onChange={e => setSelectedTag(e.target.value)}
                   className="input"
                 >
                   <option value="">Select a tag</option>
-                  {allTags.map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
+                  {allTags.map(tag => (
+                    <option key={tag} value={tag}>{tag}</option>
                   ))}
                 </select>
               )}
             </div>
 
+            {/* Event Filter */}
             <div>
               <div className="flex items-center mb-2">
                 <Calendar className="h-5 w-5 text-primary-500 mr-1.5" />
@@ -153,9 +154,7 @@ const Gallery: React.FC = () => {
                 </h3>
               </div>
               <button
-                className={`btn ${
-                  filterType === 'event' ? 'btn-primary' : 'btn-secondary'
-                } w-full mb-2`}
+                className={`btn ${filterType === 'event' ? 'btn-primary' : 'btn-secondary'} w-full mb-2`}
                 onClick={() => handleFilterChange('event')}
               >
                 By Event
@@ -163,14 +162,12 @@ const Gallery: React.FC = () => {
               {filterType === 'event' && (
                 <select
                   value={selectedEvent}
-                  onChange={(e) => setSelectedEvent(e.target.value)}
+                  onChange={e => setSelectedEvent(e.target.value)}
                   className="input"
                 >
                   <option value="">Select an event</option>
-                  {allEvents.map((event) => (
-                    <option key={event} value={event}>
-                      {event}
-                    </option>
+                  {allEvents.map(event => (
+                    <option key={event} value={event}>{event}</option>
                   ))}
                 </select>
               )}
@@ -178,23 +175,17 @@ const Gallery: React.FC = () => {
           </div>
 
           <div className="mt-4 flex justify-between">
-            <button
-              className="btn btn-secondary"
-              onClick={() => handleFilterChange('all')}
-            >
+            <button className="btn btn-secondary" onClick={() => handleFilterChange('all')}>
               Show All Photos
             </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowFilters(false)}
-            >
+            <button className="btn btn-secondary" onClick={() => setShowFilters(false)}>
               Close Filters
             </button>
           </div>
         </div>
       )}
 
-      {/* Filter indicator */}
+      {/* Filter Indicator */}
       {filterType !== 'all' && (
         <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-md p-3 flex items-center">
           <div className="text-primary-700 dark:text-primary-400 mr-2">
@@ -218,10 +209,10 @@ const Gallery: React.FC = () => {
         </div>
       )}
 
-      {/* Photo grid */}
+      {/* Photo Grid */}
       <PhotoGrid photos={filteredPhotos} onDelete={deletePhoto} />
 
-      {/* Photo count */}
+      {/* Photo Count */}
       <p className="text-sm text-gray-500 dark:text-gray-400">
         Showing {filteredPhotos.length} {filteredPhotos.length === 1 ? 'photo' : 'photos'}
         {filterType !== 'all' && ' (filtered)'}

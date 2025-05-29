@@ -38,7 +38,7 @@ const UploadPhotos: React.FC = () => {
     if (files.length === 0) return;
 
     setIsUploading(true);
-    
+
     try {
       // Upload the photos with metadata
       await uploadPhotos(files, {
@@ -47,9 +47,9 @@ const UploadPhotos: React.FC = () => {
         tags: tags.length > 0 ? tags : undefined,
         event: event || undefined,
       });
-      
+
       setUploadSuccess(true);
-      
+
       // Reset form after successful upload
       setTimeout(() => {
         setTitle('');
