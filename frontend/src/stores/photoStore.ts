@@ -42,7 +42,7 @@ const API_BASE = 'http://localhost:3000/api/photos';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : { Authorization: "" };
+  return token ? { Authorization: `Bearer ${token}` } : { Authorization: '' };
 };
 
 export const usePhotoStore = create<PhotoState>((set, get) => {
@@ -64,7 +64,6 @@ export const usePhotoStore = create<PhotoState>((set, get) => {
     }
   };
 
-  // arrancamos cargando las fotos
   fetchPhotos();
 
   return {
@@ -122,11 +121,7 @@ export const usePhotoStore = create<PhotoState>((set, get) => {
       get().photos.filter((photo) => photo.event === event),
 
     deletePhoto: async (id) => {
-      // optimista: borramos localmente
-      set((state) => ({
-        photos: state.photos.filter((p) => p._id !== id),
-      }));
-      // y en servidor
+      set((state) => ({ photos: state.photos.filter((p) => p._id !== id) }));
       try {
         const res = await fetch(`${API_BASE}/${id}`, {
           method: 'DELETE',
@@ -138,19 +133,16 @@ export const usePhotoStore = create<PhotoState>((set, get) => {
         if (!res.ok) throw new Error(`Error ${res.status}`);
       } catch (err) {
         console.error('Error deleting photo:', err);
-        // si falla, recargamos del servidor para reconciliar
         get().fetchPhotos();
       }
     },
 
     updatePhotoMetadata: async (id, metadata) => {
-      // optimista: actualizamos localmente
       set((state) => ({
         photos: state.photos.map((photo) =>
           photo._id === id ? { ...photo, ...metadata } : photo
         ),
       }));
-      // y en servidor
       try {
         const res = await fetch(`${API_BASE}/${id}`, {
           method: 'PUT',
@@ -163,7 +155,6 @@ export const usePhotoStore = create<PhotoState>((set, get) => {
         if (!res.ok) throw new Error(`Error ${res.status}`);
       } catch (err) {
         console.error('Error updating photo metadata:', err);
-        // si falla, recargamos para sincronizar
         get().fetchPhotos();
       }
     },
