@@ -11,6 +11,62 @@ interface PdfOptions {
   includeDateTaken: boolean;
 }
 
+// Helper function to load image and convert to base64
+async function loadImageAsBase64(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Handle CORS if needed
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+      
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      ctx.drawImage(img, 0, 0);
+      
+      try {
+        const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(dataURL);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => {
+      reject(new Error(`Failed to load image: ${url}`));
+    };
+    
+    img.src = url;
+  });
+}
+
+// Helper function to calculate image dimensions to fit within bounds
+function calculateImageDimensions(
+  imgWidth: number,
+  imgHeight: number,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number } {
+  const aspectRatio = imgWidth / imgHeight;
+  
+  let width = maxWidth;
+  let height = width / aspectRatio;
+  
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspectRatio;
+  }
+  
+  return { width, height };
+}
+
 export async function generateMonthlyPdf(photos: Photo[], options: PdfOptions): Promise<Blob> {
   // Create a new PDF document
   const doc = new jsPDF({
@@ -44,6 +100,19 @@ export async function generateMonthlyPdf(photos: Photo[], options: PdfOptions): 
   doc.setFontSize(12);
   doc.text(`Generated on ${format(new Date(), 'MMMM d, yyyy')}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
 
+  // Load all images first
+  const loadedImages: { [key: string]: string } = {};
+  
+  for (const photo of photos) {
+    try {
+      const base64Image = await loadImageAsBase64(photo.url);
+      loadedImages[photo._id] = base64Image;
+    } catch (error) {
+      console.warn(`Failed to load image for photo ${photo._id}:`, error);
+      // Continue without this image
+    }
+  }
+
   // Add photos
   let currentPage = 1;
   const photosPerPage = 2; // Number of photos per page
@@ -62,18 +131,63 @@ export async function generateMonthlyPdf(photos: Photo[], options: PdfOptions): 
     const photo = photos[i];
     const isFirstOnPage = i % photosPerPage === 0;
     
-    // For demo purposes, we'll just simulate adding images
-    // In a real implementation, we'd load and add actual images
+    // Calculate position for this photo
+    const photoHeight = 80; // Height allocated for each photo
     const yPosition = isFirstOnPage ? margin : (pageHeight / 2) + 10;
     
-    // Placeholder for image (gray rectangle)
-    doc.setFillColor(200, 200, 200);
-    doc.rect(margin, yPosition, contentWidth, 80, 'F');
+    // Add the actual image if it was loaded successfully
+    if (loadedImages[photo._id]) {
+      try {
+        // Create a temporary image to get dimensions
+        const tempImg = new Image();
+        tempImg.src = loadedImages[photo._id];
+        
+        // Calculate dimensions to fit within the allocated space
+        const maxImageHeight = photoHeight - 10; // Leave some space for text
+        const { width: imgWidth, height: imgHeight } = calculateImageDimensions(
+          tempImg.width || 400,
+          tempImg.height || 300,
+          contentWidth,
+          maxImageHeight
+        );
+        
+        // Center the image horizontally
+        const imgX = margin + (contentWidth - imgWidth) / 2;
+        
+        doc.addImage(
+          loadedImages[photo._id],
+          'JPEG',
+          imgX,
+          yPosition,
+          imgWidth,
+          imgHeight
+        );
+      } catch (error) {
+        console.warn(`Failed to add image to PDF for photo ${photo._id}:`, error);
+        // Fall back to placeholder
+        doc.setFillColor(200, 200, 200);
+        doc.rect(margin, yPosition, contentWidth, photoHeight - 10, 'F');
+        
+        // Add "Image not available" text
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        doc.text('Image not available', pageWidth / 2, yPosition + (photoHeight - 10) / 2, { align: 'center' });
+      }
+    } else {
+      // Fallback: gray placeholder
+      doc.setFillColor(200, 200, 200);
+      doc.rect(margin, yPosition, contentWidth, photoHeight - 10, 'F');
+      
+      // Add "Image not available" text
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(10);
+      doc.text('Image not available', pageWidth / 2, yPosition + (photoHeight - 10) / 2, { align: 'center' });
+    }
     
     // Add photo metadata if requested
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
-    let textY = yPosition + 85;
+    let textY = yPosition + photoHeight - 5;
     
     if (options.includePhotoTitles && photo.title) {
       doc.setFont(undefined, 'bold');
@@ -91,7 +205,9 @@ export async function generateMonthlyPdf(photos: Photo[], options: PdfOptions): 
     if (options.includePhotoDescriptions && photo.description) {
       doc.setFont(undefined, 'normal');
       doc.setFontSize(10);
-      doc.text(photo.description, margin, textY, { maxWidth: contentWidth });
+      // Split long descriptions into multiple lines
+      const lines = doc.splitTextToSize(photo.description, contentWidth);
+      doc.text(lines, margin, textY);
     }
   }
   
@@ -112,6 +228,7 @@ export function downloadPdf(blob: Blob, filename: string): void {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url); // Clean up
 }
 
 // Mock function for email sending - in a real app this would connect to a backend
