@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Download, Mail } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Download, Mail, Check } from 'lucide-react';
 import { Photo } from '../../stores/photoStore';
 import { generateMonthlyPdf, downloadPdf, emailPdf } from '../../utils/pdfGenerator';
 
@@ -101,7 +101,7 @@ const AlbumPreview: React.FC<AlbumPreviewProps> = ({
     if (currentPage === 0) {
       // Cover page
       return (
-        <div className="aspect-w-3 aspect-h-4 bg-primary-600 rounded-lg shadow-lg p-8 flex flex-col justify-center items-center text-white text-center">
+        <div className="aspect-[3/4] bg-primary-600 rounded-lg shadow-lg p-8 flex flex-col justify-center items-center text-white text-center">
           <h1 className="text-3xl font-bold mb-4">{title}</h1>
           {subtitle && <p className="text-lg mb-6">{subtitle}</p>}
           <p className="text-sm mt-auto">Created with PhotoChronicle</p>
@@ -113,9 +113,9 @@ const AlbumPreview: React.FC<AlbumPreviewProps> = ({
       const pagePhotos = photos.slice(startIdx, startIdx + 2);
       
       return (
-        <div className="aspect-w-3 aspect-h-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col space-y-4">
+        <div className="aspect-[3/4] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex flex-col space-y-4">
           {pagePhotos.map((photo, idx) => (
-            <div key={photo.id} className="flex-1 flex flex-col">
+            <div key={photo._id} className="flex-1 flex flex-col">
               <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden">
                 <img 
                   src={photo.thumbnailUrl} 

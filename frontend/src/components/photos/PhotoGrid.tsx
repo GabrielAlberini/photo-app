@@ -1,31 +1,39 @@
-// File: src/components/gallery/PhotoGrid.tsx
 import React, { useEffect, useState } from 'react';
 import { usePhotoStore, Photo } from '../../stores/photoStore';
-import { Tag, Edit, Trash2, Info } from 'lucide-react';
+import { Tag, Trash2, Info } from 'lucide-react';
 import PhotoDetailModal from './PhotoDetailModal';
 
 interface PhotoGridProps {
+  photos?: Photo[];
   selectable?: boolean;
   selectedPhotos?: string[];
   onSelectPhoto?: (id: string, selected: boolean) => void;
+  onDelete?: (id: string) => void;
 }
 
 const PhotoGrid: React.FC<PhotoGridProps> = ({
+  photos: propPhotos,
   selectable = false,
   selectedPhotos = [],
   onSelectPhoto,
+  onDelete,
 }) => {
-  const photos = usePhotoStore((state) => state.photos);
+  const storePhotos = usePhotoStore((state) => state.photos);
   const isLoading = usePhotoStore((state) => state.isLoading);
   const fetchPhotos = usePhotoStore((state) => state.fetchPhotos);
   const deletePhoto = usePhotoStore((state) => state.deletePhoto);
-  // const updatePhotoMetadata = usePhotoStore((state) => state.updatePhotoMetadata);
 
   const [detailPhoto, setDetailPhoto] = useState<Photo | null>(null);
 
+  // Use prop photos if provided, otherwise use store photos
+  const photos = propPhotos || storePhotos;
+
   useEffect(() => {
-    fetchPhotos();
-  }, [fetchPhotos]);
+    // Only fetch photos if we're not using prop photos and store is empty
+    if (!propPhotos && storePhotos.length === 0) {
+      fetchPhotos();
+    }
+  }, [fetchPhotos, propPhotos, storePhotos.length]);
 
   const handlePhotoClick = (photo: Photo) => {
     if (selectable && onSelectPhoto) {
@@ -38,15 +46,22 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
 
   const closeDetailModal = () => setDetailPhoto(null);
 
-  const handleDelete = (id: string) => {
-    deletePhoto(id);
+  const handleDelete = async (id: string) => {
+    if (onDelete) {
+      onDelete(id);
+    } else {
+      await deletePhoto(id);
+    }
     setDetailPhoto(null);
   };
 
-  if (isLoading) {
+  if (isLoading && !propPhotos) {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-gray-700 dark:text-gray-300">Cargando fotos…</p>
+        <div className="animate-pulse-slow flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-primary-500 border-t-transparent animate-spin"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading photos...</p>
+        </div>
       </div>
     );
   }
@@ -60,7 +75,10 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
           </div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">No photos found</h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            There are no photos matching your criteria.
+            {selectable 
+              ? "There are no photos matching your criteria. Try adjusting your filters."
+              : "Upload some photos to get started."
+            }
           </p>
         </div>
       ) : (
@@ -68,8 +86,11 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
           {photos.map((photo) => (
             <div
               key={photo._id}
-              className={`group relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 ${selectable ? 'cursor-pointer' : ''
-                } ${selectedPhotos.includes(photo._id) ? 'ring-4 ring-primary-500' : ''}`}
+              className={`group relative overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800 ${
+                selectable ? 'cursor-pointer' : ''
+              } ${
+                selectedPhotos.includes(photo._id) ? 'ring-4 ring-primary-500' : ''
+              }`}
               onClick={() => handlePhotoClick(photo)}
             >
               <div className="aspect-w-4 aspect-h-3 w-full overflow-hidden bg-gray-200 dark:bg-gray-700">
@@ -77,20 +98,23 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
                   src={photo.thumbnailUrl}
                   alt={photo.title}
                   className="w-full h-full object-cover transform transition-transform group-hover:scale-105"
+                  loading="lazy"
                 />
 
                 {selectable && (
                   <div
-                    className={`absolute inset-0 bg-primary-500 bg-opacity-20 flex items-center justify-center transition-opacity ${selectedPhotos.includes(photo._id)
+                    className={`absolute inset-0 bg-primary-500 bg-opacity-20 flex items-center justify-center transition-opacity ${
+                      selectedPhotos.includes(photo._id)
                         ? 'opacity-100'
                         : 'opacity-0 group-hover:opacity-70'
-                      }`}
+                    }`}
                   >
                     <div
-                      className={`h-8 w-8 rounded-full border-2 ${selectedPhotos.includes(photo._id)
+                      className={`h-8 w-8 rounded-full border-2 ${
+                        selectedPhotos.includes(photo._id)
                           ? 'bg-primary-500 border-white'
                           : 'border-white bg-transparent'
-                        } flex items-center justify-center transition-colors`}
+                      } flex items-center justify-center transition-colors`}
                     >
                       {selectedPhotos.includes(photo._id) && (
                         <svg

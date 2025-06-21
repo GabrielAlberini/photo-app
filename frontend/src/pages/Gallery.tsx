@@ -55,7 +55,7 @@ const Gallery: React.FC = () => {
     }
 
     setFilteredPhotos(result);
-  }, [photos, filterType, selectedMonth, selectedTag, selectedEvent]);
+  }, [photos, filterType, selectedMonth, selectedTag, selectedEvent, getPhotosByMonth, getPhotosByTag, getPhotosByEvent]);
 
   const handleFilterChange = (type: FilterType) => {
     setFilterType(type);

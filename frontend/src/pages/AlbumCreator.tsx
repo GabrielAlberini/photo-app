@@ -6,7 +6,7 @@ import PhotoGrid from '../components/photos/PhotoGrid';
 import AlbumPreview from '../components/album/AlbumPreview';
 
 const AlbumCreator: React.FC = () => {
-  const { photos } = usePhotoStore();
+  const { photos, fetchPhotos } = usePhotoStore();
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [title, setTitle] = useState(`My Album - ${format(new Date(), 'MMMM yyyy')}`);
   const [subtitle, setSubtitle] = useState('');
@@ -19,6 +19,11 @@ const AlbumCreator: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<string>('');
   const [filteredPhotos, setFilteredPhotos] = useState<Photo[]>([]);
   const [step, setStep] = useState<1 | 2>(1);
+
+  // Fetch photos on component mount
+  useEffect(() => {
+    fetchPhotos();
+  }, [fetchPhotos]);
 
   // Get unique tags and events for filters
   const allTags = Array.from(new Set(photos.flatMap(photo => photo.tags)));
@@ -80,7 +85,7 @@ const AlbumCreator: React.FC = () => {
 
   // Get selected photos objects for preview
   const getSelectedPhotosObjects = (): Photo[] => {
-    return filteredPhotos.filter(photo => selectedPhotos.includes(photo.id));
+    return filteredPhotos.filter(photo => selectedPhotos.includes(photo._id));
   };
 
   // Handle moving to step 2
@@ -94,7 +99,7 @@ const AlbumCreator: React.FC = () => {
 
   // Handle selecting all photos
   const handleSelectAll = () => {
-    setSelectedPhotos(filteredPhotos.map(photo => photo.id));
+    setSelectedPhotos(filteredPhotos.map(photo => photo._id));
   };
 
   // Handle deselecting all photos
@@ -272,7 +277,6 @@ const AlbumCreator: React.FC = () => {
 
                 {/* Photo grid with selection */}
                 <PhotoGrid
-                  photos={filteredPhotos}
                   selectable={true}
                   selectedPhotos={selectedPhotos}
                   onSelectPhoto={handleSelectPhoto}
